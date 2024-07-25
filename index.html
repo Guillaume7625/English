@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entraînement en Anglais</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f8ff;
+            text-align: center;
+        }
+        h1 {
+            color: #4caf50;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            font-family: 'Montserrat', sans-serif;
+            animation: fadeIn 1s ease-in-out;
+        }
+        h2 {
+            color: #333;
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            font-family: 'Montserrat', sans-serif;
+        }
+        button {
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 10px;
+            margin: 10px;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+        }
+        .question-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        .option {
+            display: block;
+            margin: 10px 0;
+            animation: fadeInUp 0.5s ease-in-out;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .option:hover {
+            background-color: #f1f1f1;
+        }
+        .correct {
+            background-color: #d4edda;
+            color: #155724;
+            border-color: #c3e6cb;
+        }
+        .incorrect {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-color: #f5c6cb;
+        }
+        .explanation {
+            display: none;
+            color: #721c24;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        .incorrect .explanation {
+            display: block;
+        }
+        #progress {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Entraînement en Anglais</h1>
+    <div id="app">
+        <div id="level-selection">
+            <h2>Choisis ton niveau :</h2>
+            <button id="level-cm2">CM2</button>
+            <button id="level-4eme">4ème</button>
+        </div>
+        <div id="question-container"></div>
+        <div id="progress" style="display: none;"></div>
+        <button id="next-page-btn" style="display: none;" disabled>Page suivante</button>
+    </div>
+
+    <script>
+        const app = {
+            allQuestions: {},
+            sessionQuestions: [],
+            currentQuestion: 0,
+            score: 0,
+            level: '',
+            questionsPerPage: 5,
+            currentPage: 0,
+            correctAnswersThisPage: 0,
+            totalCorrectFirstTry: 0,
+
+            init() {
+                document.getElementById('level-cm2').addEventListener('click', () => this.setLevel('cm2'));
+                document.getElementById('level-4eme').addEventListener('click', () => this.setLevel('4eme'));
+                document.getElementById('next-page-btn').addEventListener('click', () => this.nextPage());
+            },
+
+            setLevel(level) {
+                this.level = level;
+                this.allQuestions = this.generateQuestions(level);
+                this.startNewSession();
+            },
+
+            startNewSession() {
+                this.sessionQuestions = this.getRandomQuestions();
+                this.currentPage = 0;
+                this.score = 0;
+                this.totalCorrectFirstTry = 0;
+                this.correctAnswersThisPage = 0;
+                this.showQuestions();
+                document.getElementById('level-selection').style.display = 'none';
+                document.getElementById('question-container').style.display = 'block';
+                document.getElementById('progress').style.display = 'block';
+                document.getElementById('next-page-btn').style.display = 'inline-block';
+                document.getElementById('next-page-btn').disabled = true;
+            },
+
+            getRandomQuestions() {
+                const questions = [];
+                Object.values(this.allQuestions).forEach(theme => {
+                    questions.push(...theme.sort(() => 0.5 - Math.random()).slice(0, 15));
+                });
+                return questions.sort(() => 0.5 - Math.random()).slice(0, 60); // Ensuring 60 unique questions per session
+            },
+
+            showQuestions() {
+                const container = document.getElementById('question-container');
+                const start = this.currentPage * this.questionsPerPage;
+                const end = start + this.questionsPerPage;
+                const questions = this.sessionQuestions.slice(start, end);
+                
+                container.innerHTML = questions.map((question, index) => `
+                    <div class="question-container" data-question-index="${start + index}">
+                        <h3>${question.text}</h3>
+                        ${question.options.map((option, i) => `
+                            <label class="option">
+                                <input type="radio" name="answer${start + index}" value="${i}" onchange="app.checkIfAllAnswered(${start + index})">
+                                ${option}
+                            </label>
+                        `).join('')}
+                        <div class="explanation">${question.explanation}</div>
+                    </div>
+                `).join('');
+
+                this.updateProgress();
+            },
+
+            checkIfAllAnswered(questionIndex) {
+                const selectedOption = document.querySelector(`input[name="answer${questionIndex}"]:checked`);
+                if (selectedOption) {
+                    this.checkAnswer(questionIndex, parseInt(selectedOption.value));
+                }
+                
+                const start = this.currentPage * this.questionsPerPage;
+                const end = start + this.questionsPerPage;
+                let allAnswered = true;
+
+                for (let i = start; i < end; i++) {
+                    if (!document.querySelector(`input[name="answer${i}"]:checked`)) {
+                        allAnswered = false;
+                        break;
+                    }
+                }
+
+                document.getElementById('next-page-btn').disabled = !allAnswered;
+            },
+
+            checkAnswer(questionIndex, answer) {
+                const question = this.sessionQuestions[questionIndex];
+                const selectedOption = document.querySelector(`input[name="answer${questionIndex}"]:checked`);
+
+                if (answer === question.correctAnswer) {
+                    if (!selectedOption.parentElement.classList.contains('correct')) {
+                        this.correctAnswersThisPage++;
+                        this.totalCorrectFirstTry++;
+                        selectedOption.parentElement.classList.add('correct');
+                    }
+                } else {
+                    selectedOption.parentElement.classList.add('incorrect');
+                    selectedOption.parentElement.querySelector('.explanation').style.display = 'block';
+                }
+            },
+
+            nextPage() {
+                this.currentPage++;
+                this.correctAnswersThisPage = 0;
+                if (this.currentPage * this.questionsPerPage >= this.sessionQuestions.length) {
+                    this.showFinalScore();
+                } else {
+                    this.showQuestions();
+                    document.getElementById('next-page-btn').disabled = true;
+                }
+            },
+
+            showFinalScore() {
+                const container = document.getElementById('question-container');
+                const scorePercentage = (this.totalCorrectFirstTry / this.sessionQuestions.length) * 100;
+                let message = "Victoire : Tu as gagné ";
+
+                if (this.level === '4eme') {
+                    message = "Théophile : Tu as gagné ";
+                }
+
+                if (scorePercentage === 100) {
+                    message += "45 minutes d'écran ! Super tu as tout juste !";
+                } else if (scorePercentage >= 80) {
+                    message += "15 minutes d'écran ! Bien joué !";
+                } else if (scorePercentage >= 50) {
+                    message += "10 minutes d'écran ! Continue à t'améliorer !";
+                } else {
+                    message += "désolé, pas d'écran cette fois. Continue à t'entraîner !";
+                }
+
+                container.innerHTML = `
+                    <h2>Fin de la session !</h2>
+                    <p>Ton score : ${this.totalCorrectFirstTry} / ${this.sessionQuestions.length}</p>
+                    <p>Pourcentage de bonnes réponses : ${scorePercentage.toFixed(2)}%</p>
+                    <p>${message}</p>
+                `;
+                document.getElementById('next-page-btn').style.display = 'none';
+                document.getElementById('progress').style.display = 'none';
+            },
+
+            updateProgress() {
+                const progressElement = document.getElementById('progress');
+                progressElement.textContent = `Page ${this.currentPage + 1} / ${Math.ceil(this.sessionQuestions.length / this.questionsPerPage)}`;
+            },
+
+            generateQuestions(level) {
+                const grammarQuestionsCM2 = [
+                    {
+                        text: "Conjuguez le verbe 'manger' au présent : 'Chaque jour, je _________ (manger) un fruit.'",
+                        options: ["mange", "manger", "manges"],
+                        correctAnswer: 0,
+                        explanation: "La forme correcte est 'mange'."
+                    },
+                    {
+                        text: "Conjuguez le verbe 'aller' au futur simple : 'Demain, nous _________ (aller) au parc.'",
+                        options: ["allons", "irai", "irons"],
+                        correctAnswer: 2,
+                        explanation: "La forme correcte est 'irons'."
+                    },
+                    {
+                        text: "Conjuguez le verbe 'faire' au passé composé : 'Hier, il _________ (faire) beau.'",
+                        options: ["fait", "faisait", "a fait"],
+                        correctAnswer: 2,
+                        explanation: "La forme correcte est 'a fait'."
+                    },
+                    {
+                        text: "Conjuguez le verbe 'avoir' au plus-que-parfait : 'Quand il est arrivé, j'_________ (avoir) déjà fini.'",
+                        options: ["avais", "ai eu", "avais eu"],
+                        correctAnswer: 2,
+                        explanation: "La forme correcte est 'avais eu'."
+                    },
+                    {
+                        text: "Reconstituez la phrase correcte : 'joue / Marie / au parc / avec ses amis.'",
+                        options: ["Marie joue avec ses amis au parc.", "Avec ses amis Marie joue au parc.", "Au parc joue Marie avec ses amis."],
+                        correctAnswer: 0,
+                        explanation: "La forme correcte est 'Marie joue avec ses amis au parc.'."
+                    }
+                ];
+
+                const vocabQuestionsCM2 = [
+                    {
+                        text: "Quelle est la définition du mot 'jouer' ?",
+                        options: ["Faire du sport", "S'amuser avec des amis", "Travailler"],
+                        correctAnswer: 1,
+                        explanation: "La définition correcte est 'S'amuser avec des amis'."
+                    },
+                    {
+                        text: "Quel est le synonyme de 'content' ?",
+                        options: ["Heureux", "Triste", "Fâché"],
+                        correctAnswer: 0,
+                        explanation: "Le synonyme correct est 'Heureux'."
+                    },
+                    {
+                        text: "Que signifie l'expression 'avoir la pêche' ?",
+                        options: ["Être fatigué", "Être en forme", "Être triste"],
+                        correctAnswer: 1,
+                        explanation: "La signification correcte est 'Être en forme'."
+                    },
+                    {
+                        text: "Choisissez le temps verbal approprié : 'Quand je _________ (arriver), il pleuvait.'",
+                        options: ["arriverai", "suis arrivé", "arriverais"],
+                        correctAnswer: 1,
+                        explanation: "La forme correcte est 'suis arrivé'."
+                    },
+                    {
+                        text: "Identifiez le temps verbal : 'Il chantait souvent.'",
+                        options: ["Passé composé", "Imparfait", "Futur simple"],
+                        correctAnswer: 1,
+                        explanation: "La forme correcte est 'Imparfait'."
+                    }
+                ];
+
+                const grammarQuestions4eme = [
+                    {
+                        text: "Conjuguez le verbe 'faire' au passé composé : 'Hier, il _________ (faire) beau.'",
+                        options: ["fait", "faisait", "a fait"],
+                        correctAnswer: 2,
+                        explanation: "La forme correcte est 'a fait'."
+                    },
+                    {
+                        text: "Conjuguez le verbe 'avoir' au plus-que-parfait : 'Quand il est arrivé, j'_________ (avoir) déjà fini.'",
+                        options: ["avais", "ai eu", "avais eu"],
+                        correctAnswer: 2,
+                        explanation: "La forme correcte est 'avais eu'."
+                    },
+                    {
+                        text: "Reconstituez la phrase correcte : 'qui / la nouvelle / Il / regarder / a / voiture.'",
+                        options: ["Il a regardé la nouvelle voiture.", "La nouvelle voiture a regardé il.", "Il la nouvelle voiture a regardé."],
+                        correctAnswer: 0,
+                        explanation: "La forme correcte est 'Il a regardé la nouvelle voiture.'."
+                    },
+                    {
+                        text: "Choisissez le temps verbal approprié : 'Quand je _________ (arriver), il pleuvait.'",
+                        options: ["arriverai", "suis arrivé", "arrivais"],
+                        correctAnswer: 2,
+                        explanation: "La forme correcte est 'arrivais'."
+                    },
+                    {
+                        text: "Identifiez le temps verbal : 'Il avait déjà fini quand nous sommes arrivés.'",
+                        options: ["Passé composé", "Plus-que-parfait", "Futur antérieur"],
+                        correctAnswer: 1,
+                        explanation: "La forme correcte est 'Plus-que-parfait'."
+                    }
+                ];
+
+                const vocabQuestions4eme = [
+                    {
+                        text: "Quelle est la définition du mot 'éloquent' ?",
+                        options: ["Qui parle bien", "Qui est rapide", "Qui est silencieux"],
+                        correctAnswer: 0,
+                        explanation: "La définition correcte est 'Qui parle bien'."
+                    },
+                    {
+                        text: "Quel est le synonyme de 'rapide' ?",
+                        options: ["Lent", "Vite", "Doucement"],
+                        correctAnswer: 1,
+                        explanation: "Le synonyme correct est 'Vite'."
+                    },
+                    {
+                        text: "Que signifie l'expression 'mettre la charrue avant les bœufs' ?",
+                        options: ["Travailler dur", "Aller trop vite", "Être en retard"],
+                        correctAnswer: 1,
+                        explanation: "La signification correcte est 'Aller trop vite'."
+                    },
+                    {
+                        text: "Choisissez le temps verbal approprié : 'Quand je _________ (arriver), il pleuvait.'",
+                        options: ["arriverai", "suis arrivé", "arrivais"],
+                        correctAnswer: 2,
+                        explanation: "La forme correcte est 'arrivais'."
+                    },
+                    {
+                        text: "Identifiez le temps verbal : 'Il avait déjà fini quand nous sommes arrivés.'",
+                        options: ["Passé composé", "Plus-que-parfait", "Futur antérieur"],
+                        correctAnswer: 1,
+                        explanation: "La forme correcte est 'Plus-que-parfait'."
+                    }
+                ];
+
+                return level === 'cm2' ? {
+                    grammar: grammarQuestionsCM2,
+                    vocabulary: vocabQuestionsCM2
+                } : {
+                    grammar: grammarQuestions4eme,
+                    vocabulary: vocabQuestions4eme
+                };
+            }
+        };
+
+        app.init();
+    </script>
+</body>
+</html>
